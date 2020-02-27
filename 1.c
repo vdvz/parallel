@@ -57,7 +57,7 @@ int main(){
     int itter = 0;
     double * x_n1 =(double *)malloc(sizeof(double) * N);
     while(!converged){
-      
+        
         for (int i = 0; i<N; i++){
             double sub = 0;
             for(int j = 0; j<N; j++){
