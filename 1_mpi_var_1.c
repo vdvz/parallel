@@ -44,6 +44,7 @@ int main(int argc, char *argv[]){
         printf("%f ", b[i]);
     }
     printf("\n");
+
     
     for(int i =0;i<N;i++){
         printf("%f ", x_n[i]);
@@ -74,8 +75,13 @@ int main(int argc, char *argv[]){
 
     while(!converged){
 
+/*
+MPI_Allgather(&x_n1[first_element_in_cur_offset_include], last_elem_in_cur_offset_not_include - first_element_in_cur_offset_include,
+                    MPI_DOUBLE, &x_n1, last_elem_in_cur_offset_not_include + first_element_in_cur_offset_include, 
+                            MPI_DOUBLE, MPI_COMM_WORLD)
+*/
+
         for (int i = first_element_in_cur_offset_include; i<last_elem_in_cur_offset_not_include; i++){
-            
             double sub = 0;
             for(int j = 0; j<N; j++){
                 sub += *( A + i*N + j) * x_n[j];
@@ -84,21 +90,10 @@ int main(int argc, char *argv[]){
             
         }
         
-        for(int thread = 0; thread<kernels; thread++){
-            if(thread != rank){
-                MPI_Send(&x_n1[first_element_in_cur_offset_include], 
-                            last_elem_in_cur_offset_not_include - first_element_in_cur_offset_include,
-                                    MPI_DOUBLE, thread, 1, MPI_COMM_WORLD);
-            }
-        }
-
-
-        for(int thread = 0; thread<kernels; thread++){
-            if(thread != rank){
-                MPI_Recv(&x_n1[thread*(int)N/kernels],
-                        (thread+1)*(int)N/kernels - thread*(int)N/kernels, MPI_DOUBLE, thread, 1, MPI_COMM_WORLD, &status);
-            }
-        }
+        //MPI_Allgather отправляет одинаковые порции данных => число элементов должно  быть кратно числу ядер
+        MPI_Allgather(&x_n1[first_element_in_cur_offset_include], last_elem_in_cur_offset_not_include - first_element_in_cur_offset_include,
+                        MPI_DOUBLE, &x_n1, last_elem_in_cur_offset_not_include - first_element_in_cur_offset_include, 
+                            MPI_DOUBLE, MPI_COMM_WORLD);
 
 
         memcpy(x_n, x_n1, N*sizeof(double));
@@ -119,16 +114,16 @@ int main(int argc, char *argv[]){
             sub_norm_Axn_b += (sub - b[i])*(sub - b[i]);    
         }
         
-//      if(rank==0){
+     if(rank==0){
          
         double norm_from_another_stream;
-
+/*
         for(int thread = 0; thread<kernels; thread++){
             if(thread != rank){
                 MPI_Send(&sub_norm_Axn_b, 1, MPI_DOUBLE, thread, 1, MPI_COMM_WORLD);
             }
         }
-
+*/
         for(int thread = 0; thread<kernels; thread++){
             if(thread != rank){
                 MPI_Recv(&norm_from_another_stream, 1, MPI_DOUBLE, thread, 1, MPI_COMM_WORLD, &status);
@@ -136,24 +131,22 @@ int main(int argc, char *argv[]){
             }
         }
 
-
         norm_Axn_b = sqrt(sub_norm_Axn_b);    
 
         if(norm_Axn_b/norm_b<epsilon){
             converged = 1;
         }    
 
-    /*
         for(int thread = 0; thread<kernels; thread++){
             if(thread != rank){
                 MPI_Send(&converged, 1, MPI_INT, thread, 1, MPI_COMM_WORLD);
             }
         }
-    */
+    
 
-//        }
+    }
 
-        /*if(rank!=0){
+    if(rank!=0){
 
             MPI_Send(&sub_norm_Axn_b, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
         
@@ -161,7 +154,7 @@ int main(int argc, char *argv[]){
 
             if(converged == 1) break;
 
-        }*/
+        }
     
         itter++;
         if(itter == 100) break;
