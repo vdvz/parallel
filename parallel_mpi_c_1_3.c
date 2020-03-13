@@ -188,3 +188,4 @@ MPI_Allgather(&x_n1[first_element_in_cur_offset_include], last_elem_in_cur_offse
  
     return 0;
 }
+
